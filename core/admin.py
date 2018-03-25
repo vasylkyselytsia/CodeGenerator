@@ -40,5 +40,23 @@ class LanguageAdmin(RemovePermissionMixin, admin.ModelAdmin):
     icon = '<i class="material-icons">settings</i>'
 
 
+@admin.register(models.Function)
+class FunctionAdmin(admin.ModelAdmin):
+    search_fields = ("name", "value")
+    list_display = ("language", "name", "value",)
+    list_filter = ("language",)
+    icon = '<i class="material-icons">settings</i>'
+    ordering = ("language", "value")
+
+
+@admin.register(models.Keyword)
+class KeywordAdmin(admin.ModelAdmin):
+    search_fields = ("name", "value")
+    list_display = ("language", "name", "value",)
+    list_filter = ("language",)
+    icon = '<i class="material-icons">settings</i>'
+    ordering = ("language", "value")
+
+
 admin.site.unregister(auth_models.Group)
 admin.site.unregister(auth_models.User)

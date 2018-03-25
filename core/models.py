@@ -35,6 +35,7 @@ class Keyword(models.Model):
                                  related_query_name="keywords", verbose_name="Мова програмування")
     value = models.CharField(max_length=30, verbose_name="Значення")
     name = models.CharField(max_length=30, verbose_name="Назва")
+    template = models.TextField(max_length=1500, default="", verbose_name="Код")
 
     def __str__(self):
         return "{} [{}]".format(self.language, self.value)
