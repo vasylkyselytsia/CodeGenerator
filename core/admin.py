@@ -6,6 +6,7 @@ from django.utils.html import format_html
 from django.template.response import TemplateResponse
 
 from core import models
+from core.generator import CodeGenerator
 
 
 class RemovePermissionMixin(object):
@@ -83,8 +84,10 @@ class CodeTemplateAdmin(RemovePermissionMixin, admin.ModelAdmin):
 
     def process_view(self, request, template_id):
         code = self.get_object(request, template_id)
-        context = self.admin_site.each_context(request)
-        context['code'] = code
+        context = {
+            "code": CodeGenerator(code).generate(),
+            "title": "{} | {}".format(code.language, code.name)
+        }
         return TemplateResponse(request, 'code_view.html', context)
 
     def get_urls(self):

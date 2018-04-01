@@ -2,9 +2,21 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <title>{{ title }}</title>
+    <style>
+        body {
+            margin: 0 auto;
+            padding: 0;
+            background: #f8f8f8;
+        }
+
+        td.code {
+            width: 100rem;
+            overflow-x: auto;
+        }
+    </style>
 </head>
 <body>
-{{ code }}
+{{ code | safe }}
 </body>
 </html>
