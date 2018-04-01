@@ -36,6 +36,8 @@ class CodeGenerator(object):
         self.code_template = code_template
         self.INDENT = self.INDENTS.get(code_template.language.name, 2)
         self.language = code_template.language
+        self.keywords = dict(Keyword.objects.filter(language=self.language).values_list("value", "template"))
+        self.functions = dict(Function.objects.filter(language=self.language).values_list("value", "template"))
 
     def generate_basic_functions(self):
         functions = Function.objects.filter(language=self.language, value__in=self.BASIC_METHODS)
@@ -58,7 +60,27 @@ class CodeGenerator(object):
         return template
 
     def generate_cpp_code(self):
-        template = self.generate_base(self.code_template.name)
+
+        def get_variables():
+            variables = "\n"
+            for v in self.code_template.add_ones.all():
+                tpl = self.keywords.get(v.v_type, "int") % {
+                    "variable": v.name,
+                    "default_value": ""
+                }
+                variables += ((' ' * self.INDENTS[self.language.name]) + tpl + "\n")
+            return variables
+
+        def get_includes():
+            includes = ["<iostream>", "<string>"]
+            includes = "\n".join(["#include " + x + ";" for x in includes])
+            includes += "\n\nusing namespace std;\n\n"
+            return includes
+
+        template = get_includes() + self.generate_base(self.code_template.name)
+        template = template.replace("{variables}", "%(variables)s")
+        template = template.replace("{code}", "%(code)s")
+        template %= {"code": "%(code)", "variables": get_variables()}
         return template
 
     def generate(self):
