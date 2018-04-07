@@ -70,7 +70,7 @@ class AddOnesInline(admin.StackedInline):
 
 class AddOnesFuncInline(admin.StackedInline):
     extra = 1
-    fields = ('name', 'is_friend', 'params')
+    fields = ('name', 'f_type')
     model = models.FuncAddOnes
 
 

@@ -86,7 +86,8 @@ class FuncAddOnes(models.Model):
     template = models.ForeignKey(CodeTemplate, null=False, related_name="add_ones_func",
                                  related_query_name="add_ones_func", verbose_name="Мова програмування")
     name = models.CharField(max_length=30, verbose_name="Назва")
-    is_friend = models.BooleanField(default=False, verbose_name="Дружня")
+    # is_friend = models.BooleanField(default=False, verbose_name="Дружня")
+    f_type = models.CharField(max_length=30, choices=AddOnes.TYPES, verbose_name="Тип, що повертає")
     params = models.TextField(max_length=100, default="", verbose_name="Параметри [a,b,c=2]", blank=True)
 
     class Meta:
