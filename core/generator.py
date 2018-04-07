@@ -138,6 +138,8 @@ class CodeGenerator(object):
                     "variable": var.name
                 }
                 result.extend([get_ter, set_ter])
+            if not result:
+                return ""
             indent = " " * self.INDENT
             return "\n" + indent + "\n\n{}".format(indent).join(result)
 
@@ -148,6 +150,8 @@ class CodeGenerator(object):
                     "f_type": func.f_type, "name": func.name,
                     "cppVersion": "", "body": ";"
                 })
+            if not result:
+                return ""
             indent = " " * self.INDENT
             return "\n" + indent + "\n\n{}".format(indent).join(result)
 
@@ -168,4 +172,3 @@ class CodeGenerator(object):
         result = self.STYLES + highlight(result, self.LEXERS.get(self.language, self.LEXERS["Python"]),
                                          self.FORMATTER)
         return result
-

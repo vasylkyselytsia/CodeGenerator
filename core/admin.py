@@ -112,4 +112,4 @@ class CodeTemplateAdmin(RemovePermissionMixin, admin.ModelAdmin):
 
 
 admin.site.unregister(auth_models.Group)
-admin.site.unregister(auth_models.User)
+# admin.site.unregister(auth_models.User)
