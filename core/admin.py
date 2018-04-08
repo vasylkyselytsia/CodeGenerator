@@ -79,6 +79,7 @@ class CodeTemplateAdmin(RemovePermissionMixin, admin.ModelAdmin):
     CLOSED_PERMISSIONS = ["delete"]
     search_fields = ("language__name", "name")
     list_display = ("language", "name", "create_dt", "view_actions")
+    exclude = ("created_file", )
     icon = '<i class="material-icons">code</i>'
     inlines = [AddOnesInline, AddOnesFuncInline]
 
@@ -86,7 +87,8 @@ class CodeTemplateAdmin(RemovePermissionMixin, admin.ModelAdmin):
         code = self.get_object(request, template_id)
         context = {
             "code": CodeGenerator(code).generate(),
-            "title": "{} | {}".format(code.language, code.name)
+            "title": "{} | {}".format(code.language, code.name),
+            "code_obj": code
         }
         return TemplateResponse(request, 'code_view.html', context)
 

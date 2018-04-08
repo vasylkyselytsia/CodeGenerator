@@ -1,9 +1,13 @@
+import os
+
+from django.core.files import File
 from django.db.models import Case, When
 
 from pygments import highlight
 from pygments.lexers import get_lexer_by_name
 from pygments.formatters import get_formatter_by_name
 
+from core.utils import InMemoryZip
 from .models import Function, Keyword
 
 
@@ -84,11 +88,37 @@ class CodeGenerator(object):
         return str(base.template) % dict(name=name, code="{code}", variables="{variables}")
 
     def generate_python_code(self):
-        template = self.generate_base(self.class_name)
-        template = template.format(code=self.generate_basic_functions())
-        return template
 
-    def generate_cpp_code(self):
+        def get_basic():
+            func_s = []
+            for f in self.basic_functions:
+                if f.value == "__init__":
+                    init = f.template.split("\n")
+                    init.extend(["{0}self.{1} = kwargs.get('{1}', {2})".format(
+                        " " * self.INDENT, x.name,
+                        (x.default or "None") if x.v_type != "str" else "'%s'" % (x.default or "None"))
+                        for x in self.code_template.add_ones.all()])
+                    func_s.extend(map(lambda x: (" " * self.INDENT) + x, init))
+                else:
+                    func_s.extend(map(lambda x: (" " * self.INDENT) + x,  f.template.split("\n")))
+
+            return "\n" + "\n\n".join(func_s) + "\n\n"
+
+        def add_custom_funcs():
+            result = []
+            for func in self.code_template.add_ones_func.all():
+                result.append(self.keywords["__function__"] % {"name": func.name})
+
+            return "\n\n".join(("\n".join(map(lambda x: (" " * self.INDENT) + x, f.split("\n")))
+                                for f in result))
+
+        template = self.generate_base(self.class_name)
+
+        template = template.format(code=get_basic() + self.generate_basic_functions())
+        template = template.format(another_methods=add_custom_funcs())
+        return [{"content": template, "name": "%s.py" % self.class_name}]
+
+    def _generate_cpp_code(self, cppVersion="", body=";"):
 
         def get_variables():
             variables = "\n"
@@ -98,6 +128,9 @@ class CodeGenerator(object):
             return variables
 
         def get_includes():
+            if cppVersion:
+                return '#include "{}.h"\n\n'.format(self.class_name)
+
             includes = ["iostream", "iomanip", "string"]
             includes = "\n".join(["#include <{}>".format(x) for x in includes])
             includes += "\n\nusing namespace std;\n\n"
@@ -105,20 +138,24 @@ class CodeGenerator(object):
             return includes
 
         def get_basic_part():
-            func_s = ["  public:\n"]
+            func_s = ["  public:\n" if not cppVersion else ""]
             for f in self.basic_functions:
                 if f.value == "__init__":
-                    func_s.append(f.template % {"class_name": self.class_name, "cppVersion": "",
-                                                "body": ";", "params": ""})
+                    func_s.append(f.template % {"class_name": self.class_name, "cppVersion": cppVersion,
+                                                "body": " {\n\n  }" if cppVersion else body, "params": ""})
                     func_s.append(f.template % {
-                        "class_name": self.class_name, "cppVersion": "", "body": ";",
+                        "class_name": self.class_name, "cppVersion": cppVersion,
+                        "body": " {\n\n  }" if cppVersion else body,
                         "params": "const {}& object".format(self.class_name)})
                     func_s.append(f.template % {
-                        "class_name": self.class_name, "cppVersion": "", "body": ";",
+                        "class_name": self.class_name, "cppVersion": cppVersion,
+                        "body": "{\n%s\n  }" % ("\n".join(["{0}this->{1}={1};".format(
+                            " " * (self.INDENT * 2),  v.name
+                        ) for v in self.code_template.add_ones.all()])) if cppVersion else body,
                         "params": ", ".join(("{} {}".format(self.keywords.get(v.v_type, "int"), v.name)
                                              for v in self.code_template.add_ones.all()))})
                 else:
-                    func_s.append(f.template % {"class_name": self.class_name, "cppVersion": "", "body": ";"})
+                    func_s.append(f.template % {"class_name": self.class_name, "cppVersion": cppVersion, "body": body})
             return "\n{}".format(" " * self.INDENT).join(func_s) + "\n\n"
 
         def get_getter_and_setters():
@@ -128,12 +165,16 @@ class CodeGenerator(object):
             for var in self.code_template.add_ones.all():
                 get_ter = templates["__getattr__"] % {
                     "variable_type": self.keywords.get(var.v_type, "int"),
-                    "cppVersion": "", "body": ";",
+                    "cppVersion": cppVersion,
+                    "body": body if not cppVersion else "{{\n%s\n}}" % "{}return {};".format(
+                        " " * self.INDENT * 2, var.name),
                     "variable_cap": var.name.lower().capitalize()
                 }
                 set_ter = templates["__setattr__"] % {
                     "variable_type": self.keywords.get(var.v_type, "int"),
-                    "cppVersion": "", "body": ";",
+                    "cppVersion": cppVersion,
+                    "body": body if not cppVersion else "{{\n%s\n}}" % "{0}this->{1} = {1};".format(
+                        " " * self.INDENT * 2, var.name),
                     "variable_cap": var.name.lower().capitalize(),
                     "variable": var.name
                 }
@@ -147,28 +188,67 @@ class CodeGenerator(object):
             result = []
             for func in self.code_template.add_ones_func.all():
                 result.append(self.keywords["__function__"] % {
-                    "f_type": func.f_type, "name": func.name,
-                    "cppVersion": "", "body": ";"
+                    "f_type": self.keywords.get(func.f_type, "int"),
+                    "name": func.name,
+                    "cppVersion": cppVersion, "body": body
                 })
             if not result:
                 return ""
             indent = " " * self.INDENT
             return "\n" + indent + "\n\n{}".format(indent).join(result)
 
-        template = get_includes() + self.generate_base(self.class_name)
+        template = get_includes() + (self.generate_base(self.class_name) if not cppVersion else "\n{code}")
         template = template.replace("{variables}", "%(variables)s")
         template = template.replace("{code}", "%(code)s")
         basic_func = self.generate_basic_functions()
-        basic_func %= {"class_name": self.class_name, "body": ";", "cppVersion": ""}
+        basic_func %= {"class_name": self.class_name, "body": body, "cppVersion": cppVersion}
         basic_func = get_basic_part() + basic_func.format(another_methods=get_getter_and_setters())
         basic_func += add_custom_functions()
 
         template %= {"code": basic_func, "variables": get_variables()}
-        return template + "\n\n#endif // {}_H".format(self.class_name)
+        template = template + ("\n\n#endif // {}_H".format(self.class_name) if not cppVersion else "\n")
+        return template.replace("{{", "{").replace("}}", "}")
+
+    def generate_cpp_code(self):
+        main = """
+#include <iostream>
+#include "%(class_name)s.h"
+
+using namespace std;
+
+int main(){
+   std::cout << "Hello World" << std::endl; 
+   %(class_name)s *instance = new %(class_name)s();
+   return 0;
+}
+""" % {"class_name": self.class_name}
+        return [
+            {"name": "main.cpp", "content": main},
+            {"name": "{}.h".format(self.class_name), "content": self._generate_cpp_code()},
+            {"name": "{}.cpp".format(self.class_name), "content": self._generate_cpp_code(
+                cppVersion="{}::".format(self.class_name), body="{{\n%s return; \n}}" % (" " * (self.INDENT * 2)))}
+        ]
+
+    def generate_csharp_code(self):
+        template = self.generate_base(self.class_name)
+        template = template.replace("{code}", "%(code)s") % dict(code=self.generate_basic_functions())
+        template %= {"class_name": self.class_name}
+        return [{"name": "%s.cs" % self.class_name, "content": template}]
 
     def generate(self):
         generator = getattr(self, self.GENERATORS.get(str(self.language), self.GENERATORS["Python"]))
         result = generator()
-        result = self.STYLES + highlight(result, self.LEXERS.get(self.language, self.LEXERS["Python"]),
-                                         self.FORMATTER)
+        file_name = "{}_[{}].zip".format(self.class_name, self.language.name)
+        imz = InMemoryZip()
+
+        for res in result:
+            imz.append(res["name"], res["content"])
+            res["content"] = self.STYLES + highlight(
+                res["content"], self.LEXERS.get(self.language, self.LEXERS["Python"]),
+                self.FORMATTER)
+        imz.write_to_file(file_name)
+        self.code_template.created_file.delete()
+        self.code_template.created_file = File(open(file_name, "rb"))
+        self.code_template.save()
+        os.unlink(file_name)
         return result

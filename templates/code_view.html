@@ -1,3 +1,4 @@
+{% load staticfiles %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,16 +8,30 @@
         body {
             margin: 0 auto;
             padding: 0;
-            background: #f8f8f8;
+{#            background: #f8f8f8;#}
         }
 
         td.code {
             width: 100rem;
             overflow-x: auto;
         }
+        div.content {
+            width: 80%;
+            margin: 0 auto;
+        }
     </style>
 </head>
 <body>
-{{ code | safe }}
+<div class="content">
+    <div class="link">
+        <a href="{% static code_obj.created_file.url %}">Завантажити {{ code_obj.name }}</a>
+    </div>
+    {% for file in  code %}
+        <div class="file">
+            <h3 class="file-name">{{ file.name }}</h3>
+            <div class="file-content">{{ file.content | safe }}</div>
+        </div>
+    {% endfor %}
+</div>
 </body>
 </html>

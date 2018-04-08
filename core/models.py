@@ -1,4 +1,9 @@
+from django.conf import settings
+from django.core.files.storage import FileSystemStorage
 from django.db import models
+
+
+fs = FileSystemStorage(location=settings.UPLOAD_PATH)
 
 
 class Language(models.Model):
@@ -52,6 +57,7 @@ class CodeTemplate(models.Model):
                                  related_query_name="code_templates", verbose_name="Мова програмування")
     name = models.CharField(max_length=30, verbose_name="Назва класу")
     create_dt = models.DateTimeField(auto_now_add=True, verbose_name="Дата сторення")
+    created_file = models.FileField(null=True, upload_to="files",  storage=fs, default=None)
 
     class Meta:
         db_table = "app_code_template"
@@ -64,10 +70,10 @@ class CodeTemplate(models.Model):
 
 class AddOnes(models.Model):
     TYPES = (
-        ("int", "Integer"),
-        ("float", "Real"),
-        ("str", "String"),
-        ("bool", "Boolean")
+        ("int", "Ціле"),
+        ("float", "Дійсне"),
+        ("str", "Текстове"),
+        ("bool", "Булеве")
     )
 
     template = models.ForeignKey(CodeTemplate, null=False, related_name="add_ones",
