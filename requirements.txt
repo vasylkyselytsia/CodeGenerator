@@ -7,3 +7,4 @@ Pillow==4.2.1
 django-material==1.0.0
 dj-database-url==0.4.1
 pygments==2.2.0
+dj-static==0.0.6
