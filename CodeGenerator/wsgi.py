@@ -16,4 +16,3 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "CodeGenerator.settings")
 
 application = get_wsgi_application()
 application = DjangoWhiteNoise(Cling(application))
-

@@ -8,7 +8,6 @@
         body {
             margin: 0 auto;
             padding: 0;
-{#            background: #f8f8f8;#}
         }
 
         td.code {
@@ -19,12 +18,46 @@
             width: 80%;
             margin: 0 auto;
         }
+
+        a[download] {
+            color: #3477db;
+            font-size: 1.5rem;
+            font-weight: 500;
+            padding-left: 1.5rem;
+        }
+
+        a[download]::before {
+            content: url(https://s3-us-west-2.amazonaws.com/s.cdpn.io/11907/download-icon-zip.svg);
+            display: inline-block;
+            height: 2rem;
+            position: relative;
+            top: 0.75rem;
+            right: 1.5rem;
+            width: 2rem;
+        }
+
+        div.download p {
+            margin: 0;
+            text-align: center;
+        }
+
+        a[download]:focus, a[download]:hover {
+            color: #1e90ff !important;
+            text-decoration: none;
+        }
+
+        a[download]:active {
+            color: #1f3a93 !important;;
+        }
+
     </style>
 </head>
 <body>
 <div class="content">
-    <div class="link">
-        <a href="{% static code_obj.created_file.url %}">Завантажити {{ code_obj.name }}</a>
+    <div class="download">
+        <p>
+            <a download href="{% static code_obj.created_file.url %}">Завантажити {{ code_obj.name }}</a>
+        </p>
     </div>
     {% for file in  code %}
         <div class="file">
