@@ -275,6 +275,81 @@ int main(){
         template = template.replace("{{", "{").replace("}}", "}")
         return [{"name": "%s.cs" % self.class_name, "content": template}]
 
+    def generate_java_code(self):
+
+        def get_variables():
+            variables = "\n"
+            for v in self.code_template.add_ones.all():
+                tpl = "private {} {};".format(self.keywords.get(v.v_type, v.v_type), v.name)
+                variables += ((' ' * self.INDENTS[self.language.name]) + tpl + "\n")
+            return variables + "\n"
+
+        def get_basic():
+            f = self.basic_functions.filter(value='__init__').get()
+            code = ["{0}{1} = {2};".format(" " * self.INDENT * 2, x.name, x.name.lower())
+                    for x in self.code_template.add_ones.all().order_by("-id")]
+            params = ", ".join(("{} {}".format(self.keywords.get(v.v_type, v.v_type), v.name.lower())
+                                for v in self.code_template.add_ones.all().order_by("-id")))
+
+            return "\n" + f.template % {"class_name": self.class_name, "params": params,
+                                        "code": "\n".join(code)} + "\n"
+
+        def add_custom_functions():
+            result = []
+            for func in self.code_template.add_ones_func.all():
+                result.append(self.keywords["__function__"] % {
+                    "f_type": self.keywords.get(func.f_type, func.f_type),
+                    "name": func.name
+                })
+            if not result:
+                return ""
+            indent = " " * self.INDENT
+            return "\n" + indent + "\n\n{}".format(indent).join(result)
+
+        def get_getter_and_setters():
+            result = []
+            templates = dict(Function.objects.filter(
+                language=self.language, value__in=["__getattr__", "__setattr__"]).values_list("value", "template"))
+            for var in self.code_template.add_ones.all():
+                get_ter = templates["__getattr__"] % {
+                    "variable_type": self.keywords.get(var.v_type, var.v_type),
+                    "variable_cap": var.name.lower().capitalize(),
+                    "variable": var.name
+                }
+                set_ter = templates["__setattr__"] % {
+                    "variable_type": self.keywords.get(var.v_type, var.v_type),
+                    "variable_cap": var.name.lower().capitalize(),
+                    "variable": var.name
+                }
+                result.extend([get_ter, set_ter])
+            if not result:
+                return ""
+            indent = " " * self.INDENT
+            return "\n" + indent + "\n\n{}".format(indent).join(result)
+
+        def add_main():
+            params = ", ".join(("%s" % (v.default or 'null') if not v.v_type.lower().startswith("str")
+                                else '"%s"' % (v.default or 'String')
+                                for v in self.code_template.add_ones.all().order_by("-id")))
+            main = """
+
+  public static void main(String []args) {
+    %(class)s my%(class_cap)s = new %(class)s(%(params)s);
+  }
+
+"""
+            return main % {"class": self.class_name, "params": params,
+                           "class_cap": self.class_name.lower().capitalize()}
+
+        template = self.generate_base(self.class_name)
+        template = template.replace("{code}", "%(code)s") % dict(
+            code=get_basic() + get_variables() + get_getter_and_setters() + self.generate_basic_functions()
+        )
+        template = template.replace("{another_methods}", "%(another_methods)s")
+        template %= {"class_name": self.class_name, "another_methods": add_custom_functions() + add_main()}
+        template = template.replace("{{", "{").replace("}}", "}")
+        return [{"name": "%s.java" % self.class_name, "content": template}]
+
     def generate(self):
         generator = getattr(self, self.GENERATORS.get(str(self.language), self.GENERATORS["Python"]))
         result = generator()
