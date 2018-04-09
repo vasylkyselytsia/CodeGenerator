@@ -123,7 +123,7 @@ class CodeGenerator(object):
         def get_variables():
             variables = "\n"
             for v in self.code_template.add_ones.all():
-                tpl = "{} {};".format(self.keywords.get(v.v_type, "int"), v.name)
+                tpl = "{} {};".format(self.keywords.get(v.v_type, v.v_type), v.name)
                 variables += ((' ' * self.INDENTS[self.language.name]) + tpl + "\n")
             return variables
 
@@ -152,7 +152,7 @@ class CodeGenerator(object):
                         "body": "{\n%s\n  }" % ("\n".join(["{0}this->{1}={1};".format(
                             " " * (self.INDENT * 2),  v.name
                         ) for v in self.code_template.add_ones.all()])) if cppVersion else body,
-                        "params": ", ".join(("{} {}".format(self.keywords.get(v.v_type, "int"), v.name)
+                        "params": ", ".join(("{} {}".format(self.keywords.get(v.v_type, v.v_type), v.name)
                                              for v in self.code_template.add_ones.all()))})
                 else:
                     func_s.append(f.template % {"class_name": self.class_name, "cppVersion": cppVersion, "body": body})
@@ -164,14 +164,14 @@ class CodeGenerator(object):
                 language=self.language, value__in=["__getattr__", "__setattr__"]).values_list("value", "template"))
             for var in self.code_template.add_ones.all():
                 get_ter = templates["__getattr__"] % {
-                    "variable_type": self.keywords.get(var.v_type, "int"),
+                    "variable_type": self.keywords.get(var.v_type, var.v_type),
                     "cppVersion": cppVersion,
                     "body": body if not cppVersion else "{{\n%s\n}}" % "{}return {};".format(
                         " " * self.INDENT * 2, var.name),
                     "variable_cap": var.name.lower().capitalize()
                 }
                 set_ter = templates["__setattr__"] % {
-                    "variable_type": self.keywords.get(var.v_type, "int"),
+                    "variable_type": self.keywords.get(var.v_type, var.v_type),
                     "cppVersion": cppVersion,
                     "body": body if not cppVersion else "{{\n%s\n}}" % "{0}this->{1} = {1};".format(
                         " " * self.INDENT * 2, var.name),
@@ -230,9 +230,49 @@ int main(){
         ]
 
     def generate_csharp_code(self):
+
+        def get_variables():
+            variables = "\n"
+            for v in self.code_template.add_ones.all():
+                tpl = "public {} {} {{ get; set; }}".format(self.keywords.get(v.v_type, v.v_type), v.name)
+                variables += ((' ' * self.INDENTS[self.language.name]) + tpl + "\n")
+            return variables + "\n"
+
+        def get_basic():
+            func_s = []
+            for f in self.basic_functions:
+                if f.value == "__init__":
+                    code = ["{0}{1} = {2};".format(" " * self.INDENT * 2, x.name, x.name.lower())
+                            for x in self.code_template.add_ones.all()]
+                    params = ", ".join(("{} {}".format(self.keywords.get(v.v_type, v.v_type), v.name.lower())
+                                        for v in self.code_template.add_ones.all()))
+
+                    func_s.append(f.template % {"class_name": self.class_name, "params": params,
+                                                "code": "\n".join(code)})
+                else:
+                    func_s.append(f.template % {"class_name": self.class_name})
+
+            return "\n" + "\n".join(func_s) + "\n"
+
+        def add_custom_functions():
+            result = []
+            for func in self.code_template.add_ones_func.all():
+                result.append(self.keywords["__function__"] % {
+                    "f_type": self.keywords.get(func.f_type, func.f_type),
+                    "name": func.name
+                })
+            if not result:
+                return ""
+            indent = " " * self.INDENT
+            return "\n" + indent + "\n\n{}".format(indent).join(result)
+
         template = self.generate_base(self.class_name)
-        template = template.replace("{code}", "%(code)s") % dict(code=self.generate_basic_functions())
-        template %= {"class_name": self.class_name}
+        template = template.replace("{code}", "%(code)s") % dict(
+            code=get_basic() + get_variables() + self.generate_basic_functions()
+        )
+        template = template.replace("{another_methods}", "%(another_methods)s")
+        template %= {"class_name": self.class_name, "another_methods": add_custom_functions()}
+        template = template.replace("{{", "{").replace("}}", "}")
         return [{"name": "%s.cs" % self.class_name, "content": template}]
 
     def generate(self):
