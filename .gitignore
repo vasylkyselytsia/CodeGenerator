@@ -59,3 +59,4 @@ venv.bak/
 /site
 .mypy_cache/
 .idea
+staticfiles

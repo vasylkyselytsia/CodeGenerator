@@ -13,6 +13,8 @@ https://docs.djangoproject.com/en/2.0/ref/settings/
 import os
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
+import dj_database_url
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
@@ -23,9 +25,11 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SECRET_KEY = '7hh^%$&l7q&yy#^^8rnx3#5b9cdn(m6r(y@(ap32j1#)s^1k43'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = []
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+ALLOWED_HOSTS = ['class-gen.herokuapp.com', '127.0.0.1']
 
 
 # Application definition
@@ -39,6 +43,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'whitenoise.runserver_nostatic',
     "core.apps.CoreConfig"
 ]
 
@@ -78,10 +83,22 @@ WSGI_APPLICATION = 'CodeGenerator.wsgi.application'
 
 DATABASES = {
     'default': {
+        'ENGINE': 'django.db.backends.postgresql_psycopg2',
+        'NAME': 'ddu34qsqfbceii',
+        'USER': 'ocvyrnldteshtl',
+        'PASSWORD': '79d6980d0d729fd7ac543f1a2235b5f0d0d88a2771127fe00c3fe599049da62a',
+        'HOST': 'ec2-54-246-84-200.eu-west-1.compute.amazonaws.com',
+        'PORT': '5432',
+        "SSL": "OFF"
+    },
+    'dev': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
     }
 }
+
+db_from_env = dj_database_url.config()
+DATABASES['default'].update(db_from_env)
 
 
 # Password validation

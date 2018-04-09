@@ -1,0 +1,1 @@
+web: ./manage.py collectstatic --noinput; gunicorn CodeGenerator.wsgi  --preload --workers 1
