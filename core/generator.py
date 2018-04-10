@@ -188,7 +188,7 @@ class CodeGenerator(object):
             result = []
             for func in self.code_template.add_ones_func.all():
                 result.append(self.keywords["__function__"] % {
-                    "f_type": self.keywords.get(func.f_type, "int"),
+                    "f_type": self.keywords.get(func.f_type, func.f_type),
                     "name": func.name,
                     "cppVersion": cppVersion, "body": body
                 })
